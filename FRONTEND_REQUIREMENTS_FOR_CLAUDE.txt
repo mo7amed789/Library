@@ -1,0 +1,365 @@
+Frontend Requirements for Claude Code (Simple_LBApi)
+====================================================
+
+Purpose
+-------
+Use this document to build a production-ready frontend client for the existing `Simple_LBApi` backend.
+The frontend should support authentication, books browsing/management, loans, and fines.
+
+Suggested stack (recommended)
+-----------------------------
+- Framework: Next.js 14+ (App Router) or React + Vite.
+- Language: TypeScript.
+- Data fetching: Axios or Fetch wrapper with interceptors.
+- State: React Query + lightweight auth store (Zustand/Context).
+- Styling: Tailwind CSS + component system.
+- Forms: React Hook Form + Zod.
+
+Target API base
+---------------
+- Base URL (dev): `https://localhost:<port>`
+- All endpoints are under `/api/*`.
+- Swagger/OpenAPI UI is enabled in backend Development environment.
+
+Authentication model
+--------------------
+- Backend uses JWT bearer tokens.
+- Token is returned from `POST /api/auth/register` and `POST /api/auth/login`.
+- Include token in header:
+  `Authorization: Bearer <token>`
+- If Authorization header is present but not prefixed with `Bearer `, backend returns 401.
+
+Auth response shape
+-------------------
+{
+  "token": "string",
+  "email": "string",
+  "role": "User | Admin"
+}
+
+Standard error response shape (from middleware)
+------------------------------------------------
+{
+  "message": "string",
+  "statusCode": 400,
+  "timestampUtc": "2026-03-27T00:00:00Z",
+  "traceId": "string"
+}
+
+Frontend routing requirements
+-----------------------------
+Public pages:
+1) `/login`
+2) `/register`
+3) `/books` (catalog listing)
+4) `/books/:id` (book details)
+
+Authenticated pages:
+5) `/my-loans`
+6) `/my-fines`
+
+Admin-only pages:
+7) `/admin/books/new`
+8) `/admin/books/:id/edit`
+9) `/admin/health`
+
+Route guards:
+- If user is not authenticated, redirect protected pages to `/login`.
+- If user role is not `Admin`, block admin routes and show 403 view.
+
+
+API reference for frontend integration
+======================================
+
+1) Auth endpoints
+-----------------
+A) Register
+- Method: POST
+- URL: `/api/auth/register`
+- Body:
+  {
+    "name": "string (required, max 80)",
+    "email": "string (required, email, max 35)",
+    "password": "string (required, min 12, max 128)"
+  }
+- Success: 200 + AuthResponse
+
+B) Login
+- Method: POST
+- URL: `/api/auth/login`
+- Body:
+  {
+    "email": "string (required, email)",
+    "password": "string (required, min 8)"
+  }
+- Success: 200 + AuthResponse
+
+
+2) Books endpoints
+------------------
+A) Get all books
+- Method: GET
+- URL: `/api/books`
+- Auth: Not required
+- Success: 200
+- Response item:
+  {
+    "id": 1,
+    "title": "string",
+    "author": "string",
+    "categoryName": "string",
+    "availableCopies": 5
+  }
+
+B) Get book by ID
+- Method: GET
+- URL: `/api/books/{id}`
+- Auth: Not required
+- Success: 200 + single book response
+- Not found: 404 error shape
+
+C) Create book (Admin)
+- Method: POST
+- URL: `/api/books`
+- Auth: Admin JWT required
+- Body:
+  {
+    "title": "string (required, max 200)",
+    "author": "string (required, max 150)",
+    "categoryId": 1,
+    "totalCopies": 10
+  }
+- Success: 201
+
+D) Update book (Admin)
+- Method: PUT
+- URL: `/api/books/{id}`
+- Auth: Admin JWT required
+- Body: same as create
+- Success: 204
+
+E) Delete book (Admin)
+- Method: DELETE
+- URL: `/api/books/{id}`
+- Auth: Admin JWT required
+- Success: 204
+
+
+3) Loan endpoints (Authenticated)
+---------------------------------
+A) Borrow book
+- Method: POST
+- URL: `/api/loans/borrow`
+- Body:
+  {
+    "bookId": 1
+  }
+- Success: 204
+- Common errors: 400 max loans reached, 404 book not found, 409 book not available
+
+B) Return loan
+- Method: POST
+- URL: `/api/loans/{loanId}/return`
+- Success: 204
+- Common errors: 404 loan not found, 400 already returned
+
+C) Renew loan
+- Method: POST
+- URL: `/api/loans/{loanId}/renew`
+- Success: 204
+- Common errors: 404 loan not found, 400 cannot renew / max renewals reached
+
+D) Get my loans
+- Method: GET
+- URL: `/api/loans/my`
+- Success: 200
+- Response item:
+  {
+    "id": 1,
+    "bookTitle": "string",
+    "loanDate": "ISO date",
+    "dueDate": "ISO date",
+    "status": "Active|Returned|Overdue"
+  }
+
+
+4) Fine endpoints (Authenticated)
+---------------------------------
+A) Get my unpaid fines
+- Method: GET
+- URL: `/api/fines/my`
+- Success: 200
+- Response item:
+  {
+    "id": 1,
+    "amount": 15.00,
+    "isPaid": false,
+    "createdAt": "ISO date",
+    "loanId": 10
+  }
+
+B) Pay fine
+- Method: POST
+- URL: `/api/fines/{fineId}/pay`
+- Success: 204
+- Errors: 404 fine not found, 403 forbidden, 400 fine already paid
+
+
+5) Admin endpoint
+-----------------
+A) Health
+- Method: GET
+- URL: `/api/admin/health`
+- Auth: Admin JWT required
+- Success: 200
+- Response:
+  {
+    "service": "Simple_LBApi",
+    "status": "ok",
+    "utcTime": "ISO date"
+  }
+
+
+Frontend feature requirements
+=============================
+
+Authentication UX
+-----------------
+- Login/register forms with client-side + server-side validation messages.
+- Persist JWT securely for SPA usage (memory + refresh strategy preferred, or secure storage with risk note).
+- Decode JWT role claim on client to switch user/admin UI.
+- Logout clears auth state and cached protected data.
+
+Books UX
+--------
+- Public books table/cards with search by title/author (client-side filter acceptable).
+- Book detail view.
+- Admin controls visible only for Admin role:
+  - Create/edit/delete books.
+- Show optimistic loading states and disable submit while saving.
+
+Loans UX
+--------
+- “Borrow” action on books list/detail when authenticated.
+- “My Loans” page with due date badges (overdue/active/returned).
+- Loan actions:
+  - Return
+  - Renew
+- Refresh loans list after successful action.
+
+Fines UX
+--------
+- “My Fines” page listing unpaid fines.
+- Pay fine action with confirmation modal.
+- Handle forbidden errors clearly when fine does not belong to current user.
+
+Admin UX
+--------
+- Admin dashboard card for health endpoint status.
+- Admin-only navigation group.
+
+Error handling & resilience
+---------------------------
+- Central API client should map backend error response and show:
+  - inline validation errors (form level),
+  - toast/snackbar for action failures,
+  - fallback page for 401/403/500.
+- Auto-redirect to login on 401 (except on login/register attempts).
+- Retry strategy for idempotent GET requests.
+
+Security requirements for frontend
+----------------------------------
+- Never expose JWT in URL/query params.
+- Always send `Authorization: Bearer <token>` exactly.
+- Sanitize and escape rendered user content.
+- Protect admin routes in UI and via backend response handling.
+
+Accessibility & UX baseline
+---------------------------
+- Keyboard navigable forms and tables.
+- Proper labels and aria attributes.
+- Color contrast-compliant states for success/error/warning.
+
+Performance requirements
+------------------------
+- Code-split route pages.
+- Cache `GET /api/books` and `GET /api/loans/my` with React Query.
+- Keep bundle minimal; lazy-load admin pages.
+
+
+Deliverables required from Claude Code
+======================================
+1) Complete frontend app source code.
+2) `.env.example` with API base URL variable.
+3) API client module with typed request/response models.
+4) Auth guard and role guard implementation.
+5) Pages and components for all routes listed above.
+6) README with run/build instructions.
+7) Basic tests for:
+   - auth guard logic,
+   - API client error mapping,
+   - one page integration test (books listing).
+
+
+Suggested TypeScript interfaces
+===============================
+
+interface AuthResponse {
+  token: string;
+  email: string;
+  role: 'User' | 'Admin';
+}
+
+interface ApiErrorResponse {
+  message: string;
+  statusCode: number;
+  timestampUtc: string;
+  traceId?: string;
+}
+
+interface BookDto {
+  title: string;
+  author: string;
+  categoryId: number;
+  totalCopies: number;
+}
+
+interface BookResponseDto {
+  id: number;
+  title: string;
+  author: string;
+  categoryName: string;
+  availableCopies: number;
+}
+
+interface BorrowDto {
+  bookId: number;
+}
+
+interface LoanResponseDto {
+  id: number;
+  bookTitle: string;
+  loanDate: string;
+  dueDate: string;
+  status: string;
+}
+
+interface FineItem {
+  id: number;
+  amount: number;
+  isPaid: boolean;
+  createdAt: string;
+  loanId: number;
+}
+
+
+Acceptance checklist
+====================
+- [ ] User can register, login, logout.
+- [ ] User can browse books without login.
+- [ ] Authenticated user can borrow, renew, and return loans.
+- [ ] Authenticated user can see and pay own fines.
+- [ ] Admin can create/update/delete books.
+- [ ] Admin can open health page.
+- [ ] Error handling matches backend error contract.
+- [ ] Frontend compiles and runs via documented commands.
