@@ -1,0 +1,52 @@
+[
+  {
+    "title": "Clean Code",
+    "author": "Robert C. Martin",
+    "copies": 5
+  },
+  {
+    "title": "Domain-Driven Design",
+    "author": "Eric Evans",
+    "copies": 3
+  },
+  {
+    "title": "The Pragmatic Programmer",
+    "author": "Andrew Hunt",
+    "copies": 4
+  },
+  {
+    "title": "Design Patterns",
+    "author": "Erich Gamma",
+    "copies": 2
+  },
+  {
+    "title": "Refactoring",
+    "author": "Martin Fowler",
+    "copies": 3
+  },
+  {
+    "title": "Clean Architecture",
+    "author": "Robert C. Martin",
+    "copies": 5
+  },
+  {
+    "title": "Working Effectively with Legacy Code",
+    "author": "Michael Feathers",
+    "copies": 2
+  },
+  {
+    "title": "Code Complete",
+    "author": "Steve McConnell",
+    "copies": 4
+  },
+  {
+    "title": "Head First Design Patterns",
+    "author": "Eric Freeman",
+    "copies": 3
+  },
+  {
+    "title": "You Don't Know JS",
+    "author": "Kyle Simpson",
+    "copies": 6
+  }
+]
