@@ -1,0 +1,181 @@
+Simple_LBApi Production Documentation
+====================================
+
+Overview
+--------
+Simple_LBApi is an ASP.NET Core Web API for library operations, including:
+- JWT-based authentication.
+- Book catalog management.
+- Loan workflows (borrow/renew/return).
+- Fine tracking and payment.
+- Admin health endpoint and seeded admin account.
+
+Production-readiness updates in this revision:
+- Implemented global exception handling middleware with structured JSON errors.
+- Implemented request logging middleware.
+- Added JWT header format validation middleware.
+- Added concrete fine service + fine controller endpoints.
+- Added Admin health endpoint secured by Admin role.
+- Removed duplicate/incorrect entity properties in Fine.
+- Wired `LibrarySettings` into loan business rules with safe defaults.
+- Replaced generic exceptions with typed API exceptions and HTTP status mapping.
+
+
+Project Structure
+-----------------
+- Solution: `Simple_LBApi.slnx`
+- Main app: `Simple_LBApi/Simple_LBApi.csproj`
+- Runtime target: `net10.0`
+
+Key folders:
+- `Controllers/`      -> HTTP API endpoints.
+- `Services/`         -> business logic and interfaces.
+- `Data/`             -> EF Core DbContext + seeders.
+- `Domain/`           -> entities, enums, settings.
+- `Middleware/`       -> request logging, exception handling, JWT header validation.
+- `Common/`           -> shared exception/error response types.
+- `DTOs/`             -> API request/response contracts.
+- `Migrations/`       -> EF Core migration history.
+
+
+Configuration
+-------------
+Required configuration sections:
+- `ConnectionStrings:DefaultConnection`
+- `JwtSettings`
+  - `Key`
+  - `Issuer`
+  - `Audience`
+  - `DurationInMinutes`
+- `AdminSettings`
+  - `Email`
+  - `Password`
+- `LibrarySettings`
+  - `MaxLoansPerUser`
+  - `LoanDurationDays`
+  - `FinePerDay`
+
+Fallbacks are applied for `LibrarySettings` if invalid/missing:
+- MaxLoansPerUser => 3
+- LoanDurationDays => 14
+- FinePerDay => 5
+
+
+Dependency Injection and App Pipeline
+-------------------------------------
+Registered services:
+- `IAuthService` -> `AuthService`
+- `IBookService` -> `BookService`
+- `ILoanService` -> `LoanService`
+- `IFineService` -> `FineService`
+- `AdminSeeder`
+
+Middleware order:
+1) `ExceptionHandlingMiddleware`
+2) `RequestLoggingMiddleware`
+3) `JwtHeaderValidationMiddleware`
+4) `UseHttpsRedirection`
+5) `UseAuthentication`
+6) `UseAuthorization`
+7) `MapControllers`
+
+OpenAPI/Swagger UI is enabled in development environment.
+
+
+Database Model
+--------------
+DbSets:
+- Users
+- Books
+- Categories
+- Loans
+- Fines
+
+Important constraints:
+- Unique index on `User.Email`.
+- Restrict delete on `Loan -> User` and `Loan -> Book` relationships.
+- One-to-one between `Loan` and `Fine`.
+- Unique index on `Fine.LoanId`.
+- Decimal precision for `Fine.Amount` = `(18,2)`.
+
+
+Domain Entities
+---------------
+- `BaseEntity`: shared `Id`, `CreatedAt`, `UpdatedAt`, `IsDeleted`.
+- `User`: role-based user with loan collection.
+- `Book`: catalog item with total/available copies.
+- `Category`: classification for books.
+- `Loan`: lifecycle data and optional fine.
+- `Fine`: overdue monetary penalty state (`IsPaid`).
+
+Enums:
+- `Roles` => Admin, User
+- `LoanStatus` => Active, Returned, Overdue
+
+
+API Endpoints
+-------------
+Auth (`/api/auth`):
+- `POST /register`
+- `POST /login`
+
+Books (`/api/books`):
+- `GET /`
+- `GET /{id}`
+- `POST /` (Admin)
+- `PUT /{id}` (Admin)
+- `DELETE /{id}` (Admin)
+
+Loans (`/api/loans`, authenticated):
+- `POST /borrow`
+- `POST /{loanId}/return`
+- `POST /{loanId}/renew`
+- `GET /my`
+
+Fines (`/api/fines`, authenticated):
+- `GET /my`
+- `POST /{fineId}/pay`
+
+Admin (`/api/admin`, Admin):
+- `GET /health`
+
+
+Error Handling Contract
+-----------------------
+Errors are returned in JSON with the following format:
+- `message`
+- `statusCode`
+- `timestampUtc`
+- `traceId`
+
+Business-layer failures throw `ApiException`, allowing explicit mapping to proper HTTP status codes.
+Unexpected failures return HTTP 500 with a safe generic message.
+
+
+Security Notes
+--------------
+- JWT bearer auth with issuer/audience/signing key validation.
+- Authorization via role claims (`Admin`/`User`).
+- Middleware verifies Authorization header begins with `Bearer ` when present.
+- Passwords hashed with BCrypt.
+
+
+Operational Commands
+--------------------
+Restore/build/run:
+- `dotnet restore`
+- `dotnet build Simple_LBApi.slnx`
+- `dotnet run --project Simple_LBApi/Simple_LBApi.csproj`
+
+EF Core migration apply:
+- `dotnet ef database update --project Simple_LBApi/Simple_LBApi.csproj`
+
+
+Production Hardening Recommendations
+------------------------------------
+1) Move all secrets to secure secret manager (not plain appsettings).
+2) Add structured sink configuration for Serilog (file retention, centralized logs).
+3) Enable health checks package and readiness/liveness split.
+4) Add rate-limiting policy wiring (packages already available).
+5) Add integration tests for auth, loans, and fines flows.
+6) Add CI pipeline with build, test, and migration drift checks.

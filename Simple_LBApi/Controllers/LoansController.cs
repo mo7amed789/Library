@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Simple_LBApi.Domain.Enities;
+using Simple_LBApi.Common;
 using Simple_LBApi.DTOs;
 using Simple_LBApi.Services.Interfaces;
 using System.Security.Claims;
@@ -21,28 +21,34 @@ namespace Simple_LBApi.Controllers
 
         private int GetUserId()
         {
-            return int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(id, out var userId))
+            {
+                throw new ApiException("Invalid user context", StatusCodes.Status401Unauthorized);
+            }
+
+            return userId;
         }
 
         [HttpPost("borrow")]
         public async Task<IActionResult> Borrow(BorrowDto dto)
         {
             await _service.BorrowAsync(GetUserId(), dto);
-            return Ok();
+            return NoContent();
         }
 
-        [HttpPost("{loanId}/return")]
+        [HttpPost("{loanId:int}/return")]
         public async Task<IActionResult> Return(int loanId)
         {
             await _service.ReturnAsync(loanId);
-            return Ok();
+            return NoContent();
         }
 
-        [HttpPost("{loanId}/renew")]
+        [HttpPost("{loanId:int}/renew")]
         public async Task<IActionResult> Renew(int loanId)
         {
             await _service.RenewAsync(loanId);
-            return Ok();
+            return NoContent();
         }
 
         [HttpGet("my")]

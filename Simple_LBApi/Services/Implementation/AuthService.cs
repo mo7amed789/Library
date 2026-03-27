@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Simple_LBApi.Common;
 using Simple_LBApi.Data;
 using Simple_LBApi.Domain.Enities;
 using Simple_LBApi.DTOs;
@@ -7,7 +9,6 @@ using Simple_LBApi.Services.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
 
 namespace Simple_LBApi.Services.Implementation
 {
@@ -24,13 +25,16 @@ namespace Simple_LBApi.Services.Implementation
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
         {
-            if (await _context.Users.AnyAsync(x => x.Email == dto.Email))
-                throw new Exception("Email already exists");
+            var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+            if (await _context.Users.AnyAsync(x => x.Email == normalizedEmail))
+            {
+                throw new ApiException("Email already exists", StatusCodes.Status409Conflict);
+            }
 
             var user = new User
             {
-                Name = dto.Name,
-                Email = dto.Email,
+                Name = dto.Name.Trim(),
+                Email = normalizedEmail,
                 PasswordHash = PasswordHelper.Hash(dto.Password),
                 Role = "User"
             };
@@ -43,11 +47,14 @@ namespace Simple_LBApi.Services.Implementation
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
         {
+            var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
             var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
+                .FirstOrDefaultAsync(x => x.Email == normalizedEmail);
 
-            if (user == null || !PasswordHelper.Verify(dto.Password, user.PasswordHash))
-                throw new Exception("Invalid credentials");
+            if (user is null || !PasswordHelper.Verify(dto.Password, user.PasswordHash))
+            {
+                throw new ApiException("Invalid credentials", StatusCodes.Status401Unauthorized);
+            }
 
             return GenerateAuthResponse(user);
         }
@@ -59,10 +66,10 @@ namespace Simple_LBApi.Services.Implementation
 
             var claims = new[]
             {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
-        };
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role)
+            };
 
             var token = new JwtSecurityToken(
                 issuer: _jwt.Issuer,

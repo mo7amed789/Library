@@ -1,0 +1,12 @@
+namespace Simple_LBApi.Common
+{
+    public sealed class ApiException : Exception
+    {
+        public int StatusCode { get; }
+
+        public ApiException(string message, int statusCode) : base(message)
+        {
+            StatusCode = statusCode;
+        }
+    }
+}

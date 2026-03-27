@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Simple_LBApi.Domain.Enities;
 
 namespace Simple_LBApi.Data
@@ -6,24 +6,24 @@ namespace Simple_LBApi.Data
     public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options) { }
+            : base(options)
+        {
+        }
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<Book> Books { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<Loan> Loans { get; set; }
-        public DbSet<Fine> Fines { get; set; }
+        public DbSet<User> Users => Set<User>();
+        public DbSet<Book> Books => Set<Book>();
+        public DbSet<Category> Categories => Set<Category>();
+        public DbSet<Loan> Loans => Set<Loan>();
+        public DbSet<Fine> Fines => Set<Fine>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Unique Email
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            // Relations
             modelBuilder.Entity<Loan>()
                 .HasOne(l => l.User)
                 .WithMany(u => u.Loans)
@@ -40,15 +40,14 @@ namespace Simple_LBApi.Data
                 .HasOne(f => f.Loan)
                 .WithOne(l => l.Fine)
                 .HasForeignKey<Fine>(f => f.LoanId);
-            modelBuilder.Entity<Loan>()
-        .HasOne(l => l.Fine)
-        .WithOne(f => f.Loan)
-        .HasForeignKey<Fine>(f => f.LoanId);
 
-            // 🚫 منع تكرار الغرامة
             modelBuilder.Entity<Fine>()
                 .HasIndex(f => f.LoanId)
                 .IsUnique();
+
+            modelBuilder.Entity<Fine>()
+                .Property(f => f.Amount)
+                .HasPrecision(18, 2);
         }
     }
 }
