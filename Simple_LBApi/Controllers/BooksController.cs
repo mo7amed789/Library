@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Simple_LBApi.DTOs;
 using Simple_LBApi.Services.Interfaces;
@@ -20,32 +20,32 @@ namespace Simple_LBApi.Controllers
         public async Task<IActionResult> GetAll()
             => Ok(await _service.GetAllAsync());
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
             => Ok(await _service.GetByIdAsync(id));
 
         [Authorize(Roles = "Admin")]
         [HttpPost]
-        public async Task<IActionResult> Create(BookDto dto)
+        public async Task<IActionResult> Create([FromBody] BookDto dto)
         {
             await _service.CreateAsync(dto);
-            return Ok();
+            return StatusCode(StatusCodes.Status201Created);
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, BookDto dto)
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] BookDto dto)
         {
             await _service.UpdateAsync(id, dto);
-            return Ok();
+            return NoContent();
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
             await _service.DeleteAsync(id);
-            return Ok();
+            return NoContent();
         }
     }
 }

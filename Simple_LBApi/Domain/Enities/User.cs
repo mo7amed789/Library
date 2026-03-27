@@ -1,15 +1,13 @@
-﻿namespace Simple_LBApi.Domain.Enities
+namespace Simple_LBApi.Domain.Enities
 {
     public class User : BaseEntity
     {
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public string PasswordHash { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } = string.Empty;
+        public string Role { get; set; } = "User";
+        public bool IsEmailVerified { get; set; }
 
-        public string Role { get; set; } // Admin / User
-
-        public bool IsEmailVerified { get; set; } = false;
-
-        public ICollection<Loan> Loans { get; set; }
+        public ICollection<Loan> Loans { get; set; } = new List<Loan>();
     }
 }
